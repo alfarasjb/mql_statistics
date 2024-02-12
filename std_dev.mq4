@@ -3,7 +3,7 @@
 #property version   "1.00"
 #property strict
 #property indicator_separate_window
-#property indicator_buffers 1
+#property indicator_buffers 3
 #property indicator_plots   1
 //--- plot Label1
 #property indicator_label1  "Rolling Standard Deviation"
@@ -15,27 +15,42 @@
 #include <MovingAverages.mqh>
 input    int      InpWindow   = 10; 
 input    int      InpShift    = 0;
-double      ExtStdDevBuffer[], ExtMovingBuffer[];
+double      SDevBuffer[], MeanBuffer[], CloseBuffer[];
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
 int OnInit()
   {
 //--- indicator buffers mapping
-   IndicatorBuffers(2);
+   IndicatorBuffers(indicator_buffers);
    IndicatorDigits(Digits);
-   SetIndexBuffer(0,ExtStdDevBuffer);
+   SetIndexBuffer(0,SDevBuffer, INDICATOR_DATA);
    SetIndexLabel(0, "Standard Deviation");
    SetIndexStyle(0, indicator_type1);
    SetIndexShift(0, InpShift);
-   SetIndexDrawBegin(0, InpWindow - 1);
+   SetIndexDrawBegin(0, InpWindow + InpShift);
    
-   SetIndexBuffer(1,ExtMovingBuffer);
-   SetIndexLabel(1, "MA");
-   SetIndexStyle(1, indicator_type1);
-   SetIndexShift(1, InpShift);
-   SetIndexDrawBegin(0, InpWindow - 1);
-   IndicatorShortName("Standard Deviation");
+   SetIndexBuffer(1, MeanBuffer, INDICATOR_DATA);
+   //SetIndexLabel(1, "Mean");
+   //SetIndexShift(1, InpShift);
+   SetIndexDrawBegin(1, InpWindow - 1);
+   
+   /*
+   SetIndexBuffer(2, CloseBuffer, INDICATOR_DATA);
+   SetIndexLabel(2, "Close");
+   SetIndexShift(2, InpShift);
+   SetIndexDrawBegin(2, InpWindow - 1);
+   */
+   //SetIndexBuffer(1,MeanBuffer);
+   //SetIndexLabel(1, "MA");
+   //SetIndexStyle(1, indicator_type1);
+   //SetIndexShift(1, InpShift);
+   //SetIndexDrawBegin(0, InpWindow - 1);
+   IndicatorShortName("Std Dev");
+   
+   ArraySetAsSeries(MeanBuffer,false);
+   ArraySetAsSeries(SDevBuffer,false);
+  
 //---
    return(INIT_SUCCEEDED);
   }
@@ -54,9 +69,8 @@ int OnCalculate(const int rates_total,
                 const int &spread[])
   {
 //---
-   ArraySetAsSeries(ExtMovingBuffer,false);
-   ArraySetAsSeries(ExtStdDevBuffer,false);
-   ArraySetAsSeries(close, false);
+   
+   
    
    
    int pos = prev_calculated > 1 ? prev_calculated - 1 : 0;
@@ -65,8 +79,12 @@ int OnCalculate(const int rates_total,
    //PrintFormat("Open: %f, High: %f, Low: %f, Close: %f", open[0], high[0], low[0], close[0]);
    //PrintFormat("MA: %f", ExtMovingBuffer[InpWindow]);
    for(int i=pos; i<rates_total && !IsStopped(); i++){
-      ExtMovingBuffer[i]=SimpleMA(i,InpWindow,close);
-      ExtStdDevBuffer[i] = CalculateStandardDeviation(i, close, ExtMovingBuffer);
+      
+      //CloseBuffer[i] = close[i];
+      //MeanBuffer[i]=SimpleMA(i,InpWindow,close);
+      SDevBuffer[i] = CalculateStandardDeviation(i, close);
+      
+      
    }
    
 //--- return value of prev_calculated for next call
@@ -74,14 +92,14 @@ int OnCalculate(const int rates_total,
   }
 //+------------------------------------------------------------------+
 
-double      CalculateStandardDeviation(int position, const double &close[], const double &ma_price[]) {
+double      CalculateStandardDeviation(int position, const double &close[]) {
 
    double sum = 0;
-   
+   double mean = SimpleMA(position, InpWindow, close);
    if (position >= InpWindow) {
       for (int i = 0; i < InpWindow; i++) {
          double close_price = close[position-i];
-         double diff = MathPow(close_price - ma_price[position], 2);
+         double diff = MathPow(close_price - mean, 2);
          sum += diff;
       }
    }
