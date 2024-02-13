@@ -87,19 +87,8 @@ double   CalculateRatio(
    double open_price    = open[position];
    double close_price   = close[position];
    double body          = MathAbs(close_price - open_price);
-   double ratio         = 0;
-   double diff          = 0;
-   if (close_price > open_price) {
-      // long
-      double high_price    = high[position];
-      diff                 = MathAbs(high_price - close_price); 
-   }
-   else {
-      // short
-      double low_price     = low[position];
-      diff                 = low_price - close_price;
-   }
+   double diff          = close_price > open_price ? high[position] - close_price : low[position] - close_price;
    if (diff == 0) return 0;
-   ratio = MathPow(body, 2) / diff; 
+   double ratio = MathPow(body, 2) / diff; 
    return ratio;
 }
