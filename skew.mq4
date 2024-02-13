@@ -21,7 +21,10 @@
 #property indicator_color2    clrYellow
 #property indicator_style2    STYLE_SOLID
 #property indicator_width2    1 
-
+#property indicator_level1     2
+#property indicator_level2     -2
+#property indicator_levelcolor clrSilver
+#property indicator_levelstyle STYLE_DOT
 input    int      InpWindow   = 3;
 input    int      InpShift    = 0; 
 
@@ -60,8 +63,8 @@ int OnCalculate(const int rates_total,
 //---
    ArraySetAsSeries(SDevBuffer, false);
    ArraySetAsSeries(SkewBuffer, false);
-   
-   for(int i=0; i<rates_total; i++){
+   int limit = prev_calculated == 0 ? 0 : prev_calculated - 1;
+   for(int i=limit; i<rates_total; i++){
       SkewBuffer[i] = CalculateSkew(i, InpWindow, close);
    }
 //--- return value of prev_calculated for next call

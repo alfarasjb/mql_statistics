@@ -54,9 +54,9 @@ int OnCalculate(const int rates_total, // size of input time series
    
    ArraySetAsSeries(SDevBuffer, false);
    
+   int limit = prev_calculated == 0 ? 0 : prev_calculated - 1;
    
-   int pos = prev_calculated > 1 ? prev_calculated - 1 : 0;
-   for(int i=0; i<rates_total; i++){
+   for(int i=limit; i<rates_total; i++){
       SDevBuffer[i] = CalculateStandardDeviation(i, InpWindow, close);
    }
    

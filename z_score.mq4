@@ -105,7 +105,9 @@ int OnCalculate(const int rates_total,
    ArraySetAsSeries(SpreadBuffer, false);
    ArraySetAsSeries(CandleBuffer, false);
    
-   for (int i = 0; i < rates_total; i++){
+   int limit = prev_calculated == 0 ? 0 : prev_calculated - 1;
+   
+   for (int i = limit; i < rates_total; i++){
       CandleBuffer[i] = close[i] - open[i];
       
       switch (InpSpreadCalcMode) {
