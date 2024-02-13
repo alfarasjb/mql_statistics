@@ -6,33 +6,50 @@
 
 
 #include <MovingAverages.mqh>
-
+#include <MAIN/math.mqh>
 
 #property copyright "Copyright 2023, Jay Benedict Alfaras"
-#property link      "https://www.mql5.com"
 #property version   "1.00"
 #property strict
 #property indicator_separate_window
-#property indicator_buffers 1
+#property indicator_buffers 3
 #property indicator_plots   1
 //--- plot Label1
 #property indicator_label1  "Z-Score"
 #property indicator_type1   DRAW_HISTOGRAM
 #property indicator_color1  clrYellow
 #property indicator_style1  STYLE_SOLID
-#property indicator_width1  1
+#property indicator_width1  2
+
+#property indicator_color2  clrNONE
+#property indicator_color3  clrNONE
+
 //--- indicator buffers
 
 
-enum CalculationType{
-   Single,
-   Pair
+
+enum ENUM_SPREAD_MODE {
+   MODE_SINGLE
 };
 
-input int               InpWindow               = 25;
-input int               InpShift                = 0;
-input CalculationType   InpCalcType             = Single;
-input string            InpSecondarySymbol      = "EURUSD";
+enum ENUM_SPREAD_CALC_MODE {
+   MODE_PRICE, MODE_DIFF
+};
+
+enum ENUM_PAIR_CALC_MODE {
+   MODE_DIFFERENCE, MODE_RATIO
+};
+
+input int               InpWindow                  = 25;
+input int               InpShift                   = 0;
+
+input string            InpSep_1                   = " ========== MODE ==========";
+input ENUM_SPREAD_MODE        InpSpreadMode        = MODE_SINGLE; 
+input ENUM_SPREAD_CALC_MODE   InpSpreadCalcMode    = MODE_PRICE;
+
+//input string                  InpSep_2             = " ========== PAIR ==========";
+//input string                  InpSecondarySymbol   = "EURUSD";
+//input ENUM_PAIR_CALC_MODE     InpPairCalcMode      = MODE_DIFFERENCE;
 
 #property indicator_level1     2
 #property indicator_level2     -2
@@ -40,7 +57,7 @@ input string            InpSecondarySymbol      = "EURUSD";
 #property indicator_levelstyle STYLE_DOT
 
 
-double         ExtZScoreBuffer[];
+double      ZScoreBuffer[], SpreadBuffer[], CandleBuffer[];
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
@@ -48,11 +65,22 @@ int OnInit()
   {
    IndicatorDigits(Digits + 1);
 //--- indicator buffers mapping
-   SetIndexBuffer(0,ExtZScoreBuffer);
+   SetIndexBuffer(0,ZScoreBuffer);
    SetIndexLabel(0, "Z-Score");
    SetIndexStyle(0, indicator_type1);
-   SetIndexShift(0, InpShift);
-   SetIndexDrawBegin(0, InpWindow - 1);
+   
+   
+   SetIndexBuffer(1, SpreadBuffer);
+   SetIndexLabel(1, "Spread");
+   SetIndexStyle(1, DRAW_NONE, EMPTY, EMPTY, clrNONE);
+   
+   SetIndexBuffer(2, CandleBuffer);
+   SetIndexLabel(2, "Candle");
+   SetIndexStyle(2, DRAW_NONE, EMPTY, EMPTY, clrNONE);
+   
+   
+   
+   SetIndexDrawBegin(0, 0);
    IndicatorShortName("Z-Score");
    
 //---
@@ -73,109 +101,25 @@ int OnCalculate(const int rates_total,
                 const int &spread[])
   {
 //---
+   ArraySetAsSeries(ZScoreBuffer, false);
+   ArraySetAsSeries(SpreadBuffer, false);
+   ArraySetAsSeries(CandleBuffer, false);
    
-   int limit = rates_total - prev_calculated; 
-   
-   if (prev_calculated > 0) limit++; 
-   
-   for (int i = 0; i < limit; i++){
-      ExtZScoreBuffer[i] = CalculateZScore(i);
+   for (int i = 0; i < rates_total; i++){
+      CandleBuffer[i] = close[i] - open[i];
+      
+      switch (InpSpreadCalcMode) {
+         case MODE_PRICE:
+            SpreadBuffer[i] = CalculateSpread(i, InpWindow, close);
+            break; 
+         case MODE_DIFF:
+            SpreadBuffer[i] = CalculateSpread(i, InpWindow, CandleBuffer);
+            break;
+      }
+      ZScoreBuffer[i] = CalculateStandardScore(i, InpWindow, SpreadBuffer);
    }
    
 //--- return value of prev_calculated for next call
    return(rates_total);
   }
 //+------------------------------------------------------------------+
-
-double CalculateZScore(int i){
-   double diff = CalculateDiff(i);
-   double mean = CalculateMean(i);
-   double std_dev = CalculateStdDev(i);
-   
-   if (std_dev == 0) return 0;
-   double z_score = (diff - mean) / std_dev; 
-   return z_score; 
-}
-
-
-double CalculateDiff(int i){
-   
-   double primary_close = ClosePrice(Symbol(), i);
-   double secondary_close = ClosePrice(InpSecondarySymbol, i);
-   double rolling_mean = iMA(Symbol(), PERIOD_CURRENT, InpWindow, 0, MODE_SMA, PRICE_CLOSE, i);
-   double diff; 
-   
-   switch(InpCalcType) {
-      case Single:   
-         
-         diff = primary_close - rolling_mean;
-         return diff;
-         break;
-         
-      case Pair:
-         
-         if (secondary_close == 0) return 0;
-         diff = primary_close / secondary_close; 
-         
-         return diff; 
-         break;
-      default: 
-         break;
-   }
-   
-   return diff;
-}
-
-
-double CalculateMean(int index){
-   //int size = ArraySize(values);
-   
-   double values[]; 
-   
-   int num_elements = InpWindow; 
-   
-   for (int j = 0; j < InpWindow; j++){
-      int val_size = ArraySize(values);
-      ArrayResize(values, val_size + 1);
-      values[val_size] = CalculateDiff(index + j); 
-   }
-   
-   
-   
-   double sum = 0.0;
-   int size = ArraySize(values);
-   for (int i = 0; i < size; i++){
-      sum += values[i];
-   }
-   
-   double mean = sum / size; 
-   return mean; 
-}
-
-
-double CalculateStdDev(int index){
-
-   double sum = 0.0;
-   double mu = CalculateMean(index);
-   
-   double diffs[];
-   
-   for (int i = 0; i < InpWindow; i++){
-      int diff_size = ArraySize(diffs);
-      ArrayResize(diffs, diff_size + 1);
-      diffs[diff_size] = MathPow(CalculateDiff(index + i) - mu, 2);
-   }
-   
-   int size = ArraySize(diffs);
-   
-   for (int j = 0; j < size; j++){
-      sum += (diffs[j]);
-   }
-   
-   double in = sum / InpWindow; 
-   double sdev = MathSqrt(in);
-   
-   return sdev;
-}
-
-double ClosePrice(string symbol, int i ) { return iClose(symbol, PERIOD_CURRENT, i); }

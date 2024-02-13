@@ -3,17 +3,18 @@
 #property version   "1.00"
 #property strict
 #property indicator_separate_window
-#property indicator_buffers 2
+#property indicator_buffers 1
 #property indicator_plots   1
 //--- plot Label1
-#property indicator_label1  "Rolling Standard Deviation"
-#property indicator_type1   DRAW_LINE
+#property indicator_label1  "Standard Deviation"
+#property indicator_type1   DRAW_HISTOGRAM
 #property indicator_color1  clrYellow
 #property indicator_style1  STYLE_SOLID
-#property indicator_width1  1
+#property indicator_width1  2
 
 #include <MovingAverages.mqh>
-input    int      InpWindow   = 10; 
+#include <MAIN/math.mqh>
+input    int      InpWindow   = 3; 
 input    int      InpShift    = 0;
 double      SDevBuffer[], MeanBuffer[], CloseBuffer[];
 double      BarBuffer[];
@@ -28,10 +29,11 @@ int OnInit()
    IndicatorDigits(Digits + 2);
    SetIndexBuffer(0, SDevBuffer, INDICATOR_DATA);
    SetIndexStyle(0, indicator_type1, indicator_style1, indicator_width1, indicator_color1);
+   SetIndexLabel(0, indicator_label1);
    
-   SetIndexBuffer(1, BarBuffer, INDICATOR_DATA);
    
    SetIndexDrawBegin(0, 0);
+   IndicatorShortName("Standard Deviation");
    return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
@@ -55,28 +57,10 @@ int OnCalculate(const int rates_total, // size of input time series
    
    int pos = prev_calculated > 1 ? prev_calculated - 1 : 0;
    for(int i=0; i<rates_total; i++){
-      SDevBuffer[i] = CalculateStandardDeviation(i, close);
+      SDevBuffer[i] = CalculateStandardDeviation(i, InpWindow, close);
    }
    
 //--- return value of prev_calculated for next call
    return(rates_total);
   }
 //+------------------------------------------------------------------+
-
-double      CalculateStandardDeviation(int position, const double &close[]) {
-
-   double sum = 0;
-   ArraySetAsSeries(close, false);
-   double mean = SimpleMA(position, InpWindow, close);
-   
-   if (position >= InpWindow) {
-      for (int i = 0; i < InpWindow; i++) {
-         double close_price = close[position-i];
-         double diff = MathPow(close_price - mean, 2);
-         sum += diff;
-      }
-   }
-   
-   double sdev = MathSqrt(sum / InpWindow); 
-   return sdev;   
-}
