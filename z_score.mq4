@@ -105,6 +105,9 @@ int OnCalculate(const int rates_total,
    ArraySetAsSeries(SpreadBuffer, false);
    ArraySetAsSeries(CandleBuffer, false);
    
+   ArraySetAsSeries(close, false);
+   ArraySetAsSeries(open, false);
+   
    int limit = prev_calculated == 0 ? 0 : prev_calculated - 1;
    
    for (int i = limit; i < rates_total; i++){

@@ -8,7 +8,7 @@
 #property strict
 #property indicator_separate_window
 
-#property indicator_buffers   1
+#property indicator_buffers   2
 #property indicator_plots     1 
 #property indicator_label1    "Skew"
 #property indicator_type1     DRAW_LINE 
@@ -28,7 +28,7 @@
 input    int      InpWindow   = 3;
 input    int      InpShift    = 0; 
 
-double      SkewBuffer[], SDevBuffer[], MeanBuffer[], DiffBuffer[], CloseBuffer[];
+double      SkewBuffer[], SDevBuffer[], MeanBuffer[], DiffBuffer[], CloseBuffer[], AbsoluteSkew[];
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
@@ -40,6 +40,9 @@ int OnInit()
    SetIndexBuffer(0, SkewBuffer, INDICATOR_DATA);
    SetIndexStyle(0, indicator_type1, indicator_style1, indicator_width1, indicator_color1);
    SetIndexLabel(0, indicator_label1);
+   
+   SetIndexBuffer(1, AbsoluteSkew, INDICATOR_DATA);
+   
    
    SetIndexDrawBegin(0, 0);
    IndicatorShortName("Skew");
@@ -63,9 +66,11 @@ int OnCalculate(const int rates_total,
 //---
    ArraySetAsSeries(SDevBuffer, false);
    ArraySetAsSeries(SkewBuffer, false);
+   ArraySetAsSeries(AbsoluteSkew, false);
    int limit = prev_calculated == 0 ? 0 : prev_calculated - 1;
    for(int i=limit; i<rates_total; i++){
-      SkewBuffer[i] = CalculateSkew(i, InpWindow, close);
+      AbsoluteSkew[i] = CalculateSkew(i, InpWindow, close);
+      SkewBuffer[i] = CalculateStandardScore(i, InpWindow, AbsoluteSkew);
    }
 //--- return value of prev_calculated for next call
    return(rates_total);
